@@ -1,0 +1,2055 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>CC的编程冒险屋</title>
+    <!-- PWA相关标签 -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#ff7e33">
+    <meta name="description" content="一个有趣的编程学习游戏，通过回答Python和SQL题目来击败怪物，探索地图。">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="编程冒险">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%23ff7e33;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%23f9a34b;stop-opacity:1' /%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='90' cy='90' r='85' fill='url(%23grad)'/%3E%3Ctext x='90' y='100' font-size='60' text-anchor='middle' fill='white'%3E🐱%3C/text%3E%3C/svg%3E">
+    <style>
+        * {
+            user-select: none;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(145deg, #1a2f3a 0%, #2f5e6b 100%);
+            font-family: 'Segoe UI', 'Quicksand', 'Poppins', system-ui, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            margin: 0;
+            position: relative;
+        }
+
+        /* 梦幻漂浮物 */
+        .floating-bubble {
+            position: fixed;
+            background: rgba(255, 245, 210, 0.4);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+            animation: floatAnim 12s infinite alternate;
+        }
+
+        @keyframes floatAnim {
+            0% { transform: translateY(0px) rotate(0deg);}
+            100% { transform: translateY(-40px) rotate(8deg);}
+        }
+
+        /* 主游戏面板 */
+        .game-world {
+            background: rgba(255, 250, 235, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 70px;
+            padding: 20px 25px 30px;
+            max-width: 1200px;
+            width: 100%;
+            box-shadow: 0 25px 45px rgba(0,0,0,0.3), inset 0 1px 3px rgba(255,255,200,0.8);
+            z-index: 10;
+            transition: all 0.2s;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2.2rem;
+            background: linear-gradient(135deg, #ffbc6e, #f9a34b, #ffe6b0);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin: 0 0 5px;
+        }
+
+        .sub {
+            text-align: center;
+            color: #b4752a;
+            font-weight: 500;
+            margin-bottom: 20px;
+        }
+
+        /* 游戏状态栏 */
+        .game-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f0e6d2;
+            border-radius: 80px;
+            padding: 12px 20px;
+            margin-bottom: 20px;
+        }
+
+        .status-item {
+            background: #fff9e6;
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .status-item span {
+            color: #ff7e33;
+            margin-left: 6px;
+        }
+
+        /* 衣柜按钮 */
+        .wardrobe-btn {
+            background: linear-gradient(135deg, #ff7e33, #f9a34b);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 8px rgba(255,126,51,0.3);
+        }
+
+        .wardrobe-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 12px rgba(255,126,51,0.4);
+        }
+
+        /* 8x8网格地图 */
+        .grid-map {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            gap: 8px;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #e6d5b8b3;
+            border-radius: 80px;
+            max-height: 600px;
+            overflow: auto;
+        }
+
+        .room {
+            background: #fef2df;
+            border-radius: 15px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            min-height: 60px;
+            border: 2px solid #ffd29b;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        /* 迷雾效果 */
+        .room.fog {
+            background: #2c3e50;
+            border-color: #34495e;
+            cursor: pointer;
+        }
+
+        .room.fog:hover {
+            background: #34495e;
+        }
+
+        .room.fog::after {
+            content: '?';
+            font-size: 2rem;
+            font-weight: bold;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* 宝箱样式 */
+        .room .chest {
+            font-size: 1.5rem;
+            animation: bounce 1s infinite alternate;
+        }
+
+        /* 高人样式 */
+        .room .sage {
+            font-size: 1.5rem;
+            animation: pulse 2s infinite;
+        }
+
+        /* 出口样式 */
+        .room .exit {
+            font-size: 1.5rem;
+            animation: pulse 1.5s infinite;
+        }
+
+        .room.exit-room {
+            background: #d4edda;
+            border-color: #28a745;
+            box-shadow: 0 0 15px #28a745;
+        }
+
+        /* 迷雾清除动画 */
+        @keyframes fogClear {
+            0% {
+                background: #2c3e50;
+                border-color: #34495e;
+            }
+            100% {
+                background: #fef2df;
+                border-color: #ffd29b;
+            }
+        }
+
+        .room.fog-clearing {
+            animation: fogClear 0.5s ease-out forwards;
+        }
+
+        .room.monster-room {
+            background: #ffe1c6;
+            border-color: #e0954a;
+        }
+
+        .room.boss-room {
+            background: #ffcfaa;
+            border-color: #ff7e33;
+            box-shadow: 0 0 12px #ffac5c;
+        }
+
+        .room.highlighted {
+            animation: pulse 1s infinite alternate;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255,126,51,0.4); }
+            100% { box-shadow: 0 0 0 10px rgba(255,126,51,0); }
+        }
+
+        .room .monster {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+            animation: bounce 1s infinite alternate;
+        }
+
+        @keyframes bounce {
+            from { transform: translateY(0px);}
+            to { transform: translateY(-3px);}
+        }
+
+        .room .character {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            font-size: 1.2rem;
+            z-index: 5;
+            animation: characterMove 0.3s ease-out;
+        }
+
+        @keyframes characterMove {
+            0% { transform: scale(1.2); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .room .defeated {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            font-size: 1rem;
+            color: #4caf50;
+        }
+
+        /* 控制区域 */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .control-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 10px;
+            width: 200px;
+            height: 200px;
+        }
+
+        .control-btn {
+            border: none;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff7e33, #f9a34b);
+            color: white;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 8px rgba(255,126,51,0.3);
+        }
+
+        .control-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 12px rgba(255,126,51,0.4);
+        }
+
+        .control-btn:nth-child(1) {
+            grid-row: 1;
+            grid-column: 2;
+        }
+
+        .control-btn:nth-child(2) {
+            grid-row: 2;
+            grid-column: 1;
+        }
+
+        .control-btn:nth-child(3) {
+            grid-row: 2;
+            grid-column: 2;
+        }
+
+        .control-btn:nth-child(4) {
+            grid-row: 2;
+            grid-column: 3;
+        }
+
+        .control-btn:nth-child(5) {
+            grid-row: 3;
+            grid-column: 2;
+        }
+
+        /* 战斗面板（题目浮层） */
+        .battle-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            visibility: hidden;
+            opacity: 0;
+            transition: 0.2s;
+        }
+
+        .battle-card {
+            background: #fffbf0;
+            max-width: 550px;
+            width: 85%;
+            border-radius: 70px;
+            padding: 25px 25px 35px;
+            text-align: center;
+            box-shadow: 0 30px 40px rgba(0,0,0,0.3);
+            border: 2px solid #ffce8a;
+            animation: popIn 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            position: relative;
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0.8); opacity: 0;}
+            to { transform: scale(1); opacity: 1;}
+        }
+
+        .battle-monster {
+            font-size: 4rem;
+            margin-bottom: 5px;
+            position: relative;
+        }
+
+        /* 拟声词气泡 */
+        .speech-bubble {
+            position: absolute;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px 15px;
+            border-radius: 30px;
+            font-size: 1rem;
+            font-weight: bold;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            animation: bubbleAppear 1.5s ease-in-out;
+            opacity: 0;
+            z-index: 10;
+        }
+
+        @keyframes bubbleAppear {
+            0% {
+                opacity: 0;
+                transform: translateX(-50%) translateY(20px);
+            }
+            20% {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+            80% {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-20px);
+            }
+        }
+
+        .question-title {
+            font-size: 1.4rem;
+            font-weight: bold;
+            margin: 15px 0;
+            color: #9b5e2c;
+        }
+
+        .options-battle {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .battle-opt {
+            background: #fcf3e0;
+            padding: 12px 20px;
+            border-radius: 60px;
+            border: 2px solid #ffddb0;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .battle-opt:hover {
+            background: #ffedd5;
+            transform: translateY(-2px);
+        }
+
+        .battle-opt.correct {
+            background: #d4f1d4;
+            border-color: #4caf50;
+            animation: correct 0.5s ease-in-out;
+        }
+
+        .battle-opt.incorrect {
+            background: #ffd6d6;
+            border-color: #f44336;
+            animation: incorrect 0.5s ease-in-out;
+        }
+
+        @keyframes correct {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes incorrect {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+
+        /* 衣柜面板 */
+        .wardrobe-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            visibility: hidden;
+            opacity: 0;
+            transition: 0.2s;
+        }
+
+        .wardrobe-content {
+            background: #fffbf0;
+            max-width: 400px;
+            width: 85%;
+            border-radius: 70px;
+            padding: 25px 25px 35px;
+            text-align: center;
+            box-shadow: 0 30px 40px rgba(0,0,0,0.3);
+            border: 2px solid #ffce8a;
+            animation: popIn 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+        }
+
+        .skin-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .skin-item {
+            background: #fcf3e0;
+            padding: 20px;
+            border-radius: 40px;
+            border: 2px solid #ffddb0;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .skin-item:hover {
+            background: #ffedd5;
+            transform: translateY(-2px);
+        }
+
+        .skin-item.unlocked {
+            background: #d4f1d4;
+            border-color: #4caf50;
+        }
+
+        .skin-item .skin-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        .skin-item .skin-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .skin-item .skin-cost {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .skin-item .skin-status {
+            font-size: 0.8rem;
+            color: #4caf50;
+            font-weight: bold;
+        }
+
+        /* 通关庆祝 */
+        .win-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+            visibility: hidden;
+            opacity: 0;
+            transition: 0.3s;
+        }
+
+        .win-content {
+            background: #fff9e6;
+            border-radius: 80px;
+            padding: 40px 30px;
+            text-align: center;
+            max-width: 600px;
+            width: 85%;
+            box-shadow: 0 30px 50px rgba(0,0,0,0.3);
+            border: 2px solid #ffd29b;
+            animation: winPop 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+        }
+
+        @keyframes winPop {
+            from { transform: scale(0.7); opacity: 0;}
+            to { transform: scale(1); opacity: 1;}
+        }
+
+        .win-emoji {
+            font-size: 6rem;
+            margin-bottom: 10px;
+            animation: bounceWin 1s infinite alternate;
+        }
+
+        @keyframes bounceWin {
+            from { transform: translateY(0);}
+            to { transform: translateY(-15px);}
+        }
+
+        .win-title {
+            font-size: 2rem;
+            color: #9b5e2c;
+            margin-bottom: 10px;
+        }
+
+        .win-desc {
+            color: #666;
+            margin-bottom: 25px;
+        }
+
+        /* 音效开启提示 */
+        .audio-hint {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 250, 235, 0.95);
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-weight: bold;
+            color: #9b5e2c;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            z-index: 1000;
+            animation: fadeInOut 3s ease-in-out;
+            opacity: 0;
+        }
+
+        /* 确认弹窗 */
+        .confirm-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 400;
+            visibility: hidden;
+            opacity: 0;
+            transition: 0.3s;
+        }
+
+        .confirm-content {
+            background: #fff9e6;
+            border-radius: 80px;
+            padding: 40px 30px;
+            text-align: center;
+            max-width: 500px;
+            width: 85%;
+            box-shadow: 0 30px 50px rgba(0,0,0,0.3);
+            border: 2px solid #ffd29b;
+            animation: popIn 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+        }
+
+        .confirm-title {
+            font-size: 1.8rem;
+            color: #ff7e33;
+            margin-bottom: 15px;
+        }
+
+        .confirm-desc {
+            color: #666;
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+
+        .confirm-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        /* 开始游戏界面 */
+        .start-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .start-content {
+            background: rgba(255, 250, 235, 0.95);
+            border-radius: 80px;
+            padding: 50px 40px;
+            text-align: center;
+            max-width: 600px;
+            width: 85%;
+            box-shadow: 0 30px 50px rgba(0,0,0,0.3);
+            border: 2px solid #ffd29b;
+            animation: popIn 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+        }
+
+        .start-title {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #ffbc6e, #f9a34b, #ffe6b0);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .start-subtitle {
+            font-size: 1.2rem;
+            color: #b4752a;
+            margin-bottom: 30px;
+        }
+
+        .start-btn {
+            background: linear-gradient(135deg, #ff7e33, #f9a34b);
+            color: white;
+            border: none;
+            border-radius: 60px;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 8px rgba(255,126,51,0.3);
+        }
+
+        .start-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(255,126,51,0.4);
+        }
+
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            20%, 80% { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+
+        /* 飘落的emoji */
+        .floating-emoji {
+            position: fixed;
+            font-size: 24px;
+            pointer-events: none;
+            z-index: 1000;
+            animation: floatDown 3s ease-in-out forwards;
+        }
+
+        @keyframes floatDown {
+            0% {
+                transform: translateY(-100px) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        /* 按钮样式 */
+        .btn {
+            border: none;
+            border-radius: 60px;
+            padding: 10px 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #ff7e33, #f9a34b);
+            color: white;
+            box-shadow: 0 4px 8px rgba(255,126,51,0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(255,126,51,0.4);
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d0d0d0;
+            transform: translateY(-2px);
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .game-world {
+                margin: 20px;
+                border-radius: 40px;
+                padding: 15px 20px 25px;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .grid-map {
+                gap: 5px;
+                padding: 15px;
+                max-height: 400px;
+            }
+
+            .room {
+                min-height: 40px;
+                padding: 5px;
+            }
+
+            .room .monster {
+                font-size: 1.2rem;
+            }
+
+            .room .character {
+                font-size: 1rem;
+            }
+
+            .control-buttons {
+                width: 150px;
+                height: 150px;
+            }
+
+            .battle-card {
+                width: 90%;
+                border-radius: 50px;
+                padding: 20px 15px 30px;
+            }
+
+            .battle-monster {
+                font-size: 3rem;
+            }
+
+            .question-title {
+                font-size: 1.1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 开始游戏界面 -->
+    <div class="start-modal" id="startModal">
+        <div class="start-content">
+            <div class="start-title">CC的编程冒险屋</div>
+            <div class="start-subtitle">编程挑战大冒险</div>
+            <button class="start-btn" onclick="startGame()">开始游戏</button>
+        </div>
+    </div>
+
+    <!-- 梦幻漂浮元素 -->
+    <div class="floating-bubble" style="width: 180px; height: 180px; top: 10%; left: 5%; animation-delay: 0s;"></div>
+    <div class="floating-bubble" style="width: 120px; height: 120px; top: 25%; right: 8%; animation-delay: 1s;"></div>
+    <div class="floating-bubble" style="width: 90px; height: 90px; bottom: 15%; left: 15%; animation-delay: 0.5s;"></div>
+
+    <!-- 主游戏世界 -->
+    <div class="game-world">
+        <h1>CC的编程冒险屋</h1>
+        <div class="sub">编程挑战大冒险</div>
+
+        <!-- 游戏状态栏 -->
+        <div class="game-status">
+            <div class="status-item">积分: <span id="score">0</span></div>
+            <div class="status-item">怪物: <span id="monstersLeft">9</span></div>
+            <button class="wardrobe-btn" onclick="toggleWardrobe()">👗</button>
+        </div>
+
+        <!-- 8x8网格地图 -->
+        <div class="grid-map" id="gridMap">
+            <!-- 房间将由JS动态生成 -->
+        </div>
+
+        <!-- 控制区域 -->
+        <div class="controls">
+            <div class="control-buttons">
+                <button class="control-btn" onclick="moveCharacter('up')">↑</button>
+                <button class="control-btn" onclick="moveCharacter('left')">←</button>
+                <button class="control-btn" onclick="moveCharacter('down')">↓</button>
+                <button class="control-btn" onclick="moveCharacter('right')">→</button>
+                <button class="control-btn" onclick="resetGame()">🔄</button>
+            </div>
+            <p style="color: #b4752a; font-size: 0.9rem;">使用方向键或屏幕按钮移动</p>
+        </div>
+    </div>
+
+    <!-- 战斗弹窗 -->
+    <div class="battle-modal" id="battleModal">
+        <div class="battle-card">
+            <div class="battle-monster" id="battleMonster">🐱</div>
+            <div class="monster-name" id="monsterName">小猫怪</div>
+            <div class="question-title" id="battleQuestion">Python中，以下哪个是正确的变量命名？</div>
+            <div class="options-battle" id="battleOptions">
+                <!-- 选项将由JS动态生成 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 衣柜面板 -->
+    <div class="wardrobe-modal" id="wardrobeModal">
+        <div class="wardrobe-content">
+            <h2>角色皮肤</h2>
+            <div class="skin-grid" id="skinGrid">
+                <!-- 皮肤将由JS动态生成 -->
+            </div>
+            <button class="btn btn-primary" onclick="closeWardrobe()">关闭</button>
+        </div>
+    </div>
+
+    <!-- 通关庆祝弹窗 -->
+    <div class="win-modal" id="winModal">
+        <div class="win-content">
+            <div class="win-emoji" id="winEmoji">🎉</div>
+            <div class="win-title">恭喜通关！</div>
+            <div class="win-desc" id="winDesc">你成功击败了所有怪物，成为编程大师！</div>
+            <button class="btn btn-primary" onclick="resetGame()">再玩一次</button>
+        </div>
+    </div>
+
+    <!-- 确认弹窗 -->
+    <div class="confirm-modal" id="confirmModal">
+        <div class="confirm-content">
+            <div class="confirm-title">⚠️ 警告</div>
+            <div class="confirm-desc">你还有未击败的怪物，进入下一关将放弃本关所有奖励。确定要继续吗？</div>
+            <div class="confirm-buttons">
+                <button class="btn btn-secondary" onclick="closeConfirmModal()">取消</button>
+                <button class="btn btn-primary" onclick="confirmNextLevel()">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 音效开启提示 -->
+    <div class="audio-hint" id="audioHint">音效已开启</div>
+
+    <script>
+        // 游戏数据
+        const gameData = {
+            gridSize: 8,
+            currentLevel: 1,
+            maxLevel: 5,
+            monsters: [
+                { type: 'monster', emoji: '🐶', label: '小狗怪', defeated: false },
+                { type: 'monster', emoji: '🐥', label: '小鸡怪', defeated: false },
+                { type: 'monster', emoji: '🦊', label: '小狐怪', defeated: false },
+                { type: 'monster', emoji: '🐸', label: '青蛙怪', defeated: false },
+                { type: 'monster', emoji: '🐰', label: '小兔怪', defeated: false },
+                { type: 'monster', emoji: '🐻', label: '小熊怪', defeated: false },
+                { type: 'monster', emoji: '🐼', label: '熊猫怪', defeated: false },
+                { type: 'monster', emoji: '🐨', label: '考拉怪', defeated: false },
+                { type: 'boss', emoji: '🐉', label: '魔龙BOSS', defeated: false }
+            ],
+            chests: [],
+            sages: [],
+            exit: null,
+            sageMessages: [
+                '编程之路，勇往直前！',
+                '每一个bug都是成长的机会',
+                '坚持就是胜利，继续加油！',
+                '编程的世界充满无限可能',
+                '你的代码，你的世界',
+                '突破自我，创造奇迹',
+                '编程让梦想照进现实',
+                '每一行代码都是一个故事'
+            ],
+            questions: [
+                {
+                    type: 'python',
+                    text: 'Python中，以下哪个是正确的变量命名？',
+                    options: [
+                        { text: '1. 123variable', correct: false },
+                        { text: '2. variable123', correct: true },
+                        { text: '3. variable-123', correct: false },
+                        { text: '4. variable@123', correct: false }
+                    ]
+                },
+                {
+                    type: 'python',
+                    text: 'Python中，以下哪个语句用于定义函数？',
+                    options: [
+                        { text: '1. function my_func():', correct: false },
+                        { text: '2. def my_func():', correct: true },
+                        { text: '3. define my_func():', correct: false },
+                        { text: '4. func my_func():', correct: false }
+                    ]
+                },
+                {
+                    type: 'python',
+                    text: 'Python中，以下哪个数据类型是不可变的？',
+                    options: [
+                        { text: '1. list', correct: false },
+                        { text: '2. dictionary', correct: false },
+                        { text: '3. tuple', correct: true },
+                        { text: '4. set', correct: false }
+                    ]
+                },
+                {
+                    type: 'python',
+                    text: 'Python中，以下哪个语句用于循环遍历列表？',
+                    options: [
+                        { text: '1. for i in range(len(list)):', correct: true },
+                        { text: '2. while i < len(list):', correct: false },
+                        { text: '3. foreach i in list:', correct: false },
+                        { text: '4. loop i in list:', correct: false }
+                    ]
+                },
+                {
+                    type: 'python',
+                    text: 'Python中，以下哪个函数用于获取用户输入？',
+                    options: [
+                        { text: '1. input()', correct: true },
+                        { text: '2. get()', correct: false },
+                        { text: '3. read()', correct: false },
+                        { text: '4. fetch()', correct: false }
+                    ]
+                },
+                {
+                    type: 'sql',
+                    text: 'SQL中，用于从表中选择数据的语句是？',
+                    options: [
+                        { text: '1. SELECT', correct: true },
+                        { text: '2. GET', correct: false },
+                        { text: '3. FETCH', correct: false },
+                        { text: '4. RETRIEVE', correct: false }
+                    ]
+                },
+                {
+                    type: 'sql',
+                    text: 'SQL中，用于向表中插入新数据的语句是？',
+                    options: [
+                        { text: '1. ADD', correct: false },
+                        { text: '2. INSERT', correct: true },
+                        { text: '3. APPEND', correct: false },
+                        { text: '4. PUT', correct: false }
+                    ]
+                },
+                {
+                    type: 'sql',
+                    text: 'SQL中，用于更新表中数据的语句是？',
+                    options: [
+                        { text: '1. MODIFY', correct: false },
+                        { text: '2. UPDATE', correct: true },
+                        { text: '3. CHANGE', correct: false },
+                        { text: '4. ALTER', correct: false }
+                    ]
+                },
+                {
+                    type: 'sql',
+                    text: 'SQL中，用于删除表中数据的语句是？',
+                    options: [
+                        { text: '1. REMOVE', correct: false },
+                        { text: '2. DELETE', correct: true },
+                        { text: '3. DROP', correct: false },
+                        { text: '4. ERASE', correct: false }
+                    ]
+                },
+                {
+                    type: 'sql',
+                    text: 'SQL中，用于创建新表的语句是？',
+                    options: [
+                        { text: '1. CREATE TABLE', correct: true },
+                        { text: '2. MAKE TABLE', correct: false },
+                        { text: '3. NEW TABLE', correct: false },
+                        { text: '4. ADD TABLE', correct: false }
+                    ]
+                },
+                {
+                    type: 'python',
+                    text: 'Python中，以下哪个是列表的切片操作？',
+                    options: [
+                        { text: '1. list[0:5]', correct: true },
+                        { text: '2. list(0:5)', correct: false },
+                        { text: '3. list{0:5}', correct: false },
+                        { text: '4. list<0:5>', correct: false }
+                    ]
+                },
+                {
+                    type: 'python',
+                    text: 'Python中，以下哪个方法用于向列表添加元素？',
+                    options: [
+                        { text: '1. append()', correct: true },
+                        { text: '2. add()', correct: false },
+                        { text: '3. insert()', correct: false },
+                        { text: '4. push()', correct: false }
+                    ]
+                },
+                {
+                    type: 'python',
+                    text: 'Python中，以下哪个关键字用于导入模块？',
+                    options: [
+                        { text: '1. import', correct: true },
+                        { text: '2. include', correct: false },
+                        { text: '3. require', correct: false },
+                        { text: '4. load', correct: false }
+                    ]
+                },
+                {
+                    type: 'python',
+                    text: 'Python中，以下哪个运算符用于整数除法？',
+                    options: [
+                        { text: '1. //', correct: true },
+                        { text: '2. /', correct: false },
+                        { text: '3. %', correct: false },
+                        { text: '4. **', correct: false }
+                    ]
+                },
+                {
+                    type: 'sql',
+                    text: 'SQL中，用于连接两个表的语句是？',
+                    options: [
+                        { text: '1. JOIN', correct: true },
+                        { text: '2. CONNECT', correct: false },
+                        { text: '3. LINK', correct: false },
+                        { text: '4. MERGE', correct: false }
+                    ]
+                },
+                {
+                    type: 'sql',
+                    text: 'SQL中，用于对结果进行排序的语句是？',
+                    options: [
+                        { text: '1. ORDER BY', correct: true },
+                        { text: '2. SORT BY', correct: false },
+                        { text: '3. ARRANGE BY', correct: false },
+                        { text: '4. GROUP BY', correct: false }
+                    ]
+                },
+                {
+                    type: 'sql',
+                    text: 'SQL中，用于分组统计的语句是？',
+                    options: [
+                        { text: '1. GROUP BY', correct: true },
+                        { text: '2. ORDER BY', correct: false },
+                        { text: '3. SORT BY', correct: false },
+                        { text: '4. CLASSIFY BY', correct: false }
+                    ]
+                },
+                {
+                    type: 'python',
+                    text: 'Python中，以下哪个函数用于获取列表长度？',
+                    options: [
+                        { text: '1. len()', correct: true },
+                        { text: '2. length()', correct: false },
+                        { text: '3. size()', correct: false },
+                        { text: '4. count()', correct: false }
+                    ]
+                },
+                {
+                    type: 'python',
+                    text: 'Python中，以下哪个关键字用于异常处理？',
+                    options: [
+                        { text: '1. try', correct: true },
+                        { text: '2. catch', correct: false },
+                        { text: '3. handle', correct: false },
+                        { text: '4. error', correct: false }
+                    ]
+                }
+            ],
+            skins: [
+                { id: 'cat', emoji: '🐱', name: '初始猫', cost: 0, unlocked: true },
+                { id: 'unicorn', emoji: '🦄', name: '梦幻独角兽', cost: 100, unlocked: false },
+                { id: 'dinosaur', emoji: '🦖', name: '小恐龙', cost: 80, unlocked: false }
+            ]
+        };
+
+        // 游戏状态
+        let gameState = {
+            playerPosition: { row: 0, col: 0 },
+            score: 0,
+            monstersLeft: 9,
+            bossShield: 2,
+            bossCorrectStreak: 0,
+            audioEnabled: false,
+            currentSkin: 'cat',
+            currentLevel: 1,
+            monsterPositions: [],
+            chestPositions: [],
+            sagePositions: [],
+            exitPosition: null,
+            fog: [],
+            allMonstersDefeated: false,
+            usedQuestions: []
+        };
+
+        // 音频上下文
+        let audioContext;
+
+        // 初始化游戏
+        function initGame() {
+            // 加载保存的状态
+            loadSavedState();
+            
+            // 随机放置怪物、宝箱和高人
+            placeElements();
+            
+            // 初始化迷雾
+            initFog();
+            
+            renderGrid();
+            updateStatus();
+            renderSkins();
+            
+            // 添加键盘事件监听
+            document.addEventListener('keydown', handleKeyPress);
+            
+            // 添加点击事件以解锁音频
+            document.addEventListener('click', unlockAudio, { once: true });
+        }
+
+        // 加载保存的状态
+        function loadSavedState() {
+            const savedScore = localStorage.getItem('gameScore');
+            const savedSkins = localStorage.getItem('unlockedSkins');
+            const savedSkin = localStorage.getItem('currentSkin');
+            
+            if (savedScore) {
+                gameState.score = parseInt(savedScore);
+            }
+            
+            if (savedSkins) {
+                const unlockedSkins = JSON.parse(savedSkins);
+                gameData.skins.forEach(skin => {
+                    if (unlockedSkins.includes(skin.id)) {
+                        skin.unlocked = true;
+                    }
+                });
+            }
+            
+            if (savedSkin) {
+                gameState.currentSkin = savedSkin;
+            }
+        }
+
+        // 保存游戏状态
+        function saveGameState() {
+            localStorage.setItem('gameScore', gameState.score);
+            
+            const unlockedSkins = gameData.skins.filter(skin => skin.unlocked).map(skin => skin.id);
+            localStorage.setItem('unlockedSkins', JSON.stringify(unlockedSkins));
+            
+            localStorage.setItem('currentSkin', gameState.currentSkin);
+        }
+
+        // 随机放置怪物、宝箱和高人
+        function placeElements() {
+            gameState.monsterPositions = [];
+            gameState.chestPositions = [];
+            gameState.sagePositions = [];
+            gameState.exitPosition = null;
+            
+            // 确保BOSS在右下角
+            const bossPosition = { row: gameData.gridSize - 1, col: gameData.gridSize - 1 };
+            gameState.monsterPositions.push({ ...bossPosition, type: 'boss', index: 8 });
+            
+            // 在BOSS附近放置出口
+            const exitDirections = [
+                { row: -1, col: 0 }, // 上
+                { row: 0, col: -1 }, // 左
+                { row: -1, col: -1 } // 左上
+            ];
+            
+            let exitPlaced = false;
+            while (!exitPlaced) {
+                const dir = exitDirections[Math.floor(Math.random() * exitDirections.length)];
+                const exitRow = bossPosition.row + dir.row;
+                const exitCol = bossPosition.col + dir.col;
+                
+                if (exitRow >= 0 && exitRow < gameData.gridSize && exitCol >= 0 && exitCol < gameData.gridSize) {
+                    gameState.exitPosition = { row: exitRow, col: exitCol };
+                    exitPlaced = true;
+                }
+            }
+            
+            // 随机放置其他怪物
+            const monsterCount = 8;
+            let placedMonsters = 0;
+            
+            while (placedMonsters < monsterCount) {
+                const row = Math.floor(Math.random() * gameData.gridSize);
+                const col = Math.floor(Math.random() * gameData.gridSize);
+                
+                // 确保不在起点、BOSS位置和出口位置
+                if ((row === 0 && col === 0) || 
+                    (row === bossPosition.row && col === bossPosition.col) ||
+                    (gameState.exitPosition && row === gameState.exitPosition.row && col === gameState.exitPosition.col)) {
+                    continue;
+                }
+                
+                // 确保位置不重复
+                const isDuplicate = isPositionOccupied(row, col);
+                if (!isDuplicate) {
+                    gameState.monsterPositions.push({ row, col, type: 'monster', index: placedMonsters });
+                    placedMonsters++;
+                }
+            }
+            
+            // 随机放置宝箱（10个）
+            const chestCount = 10;
+            let placedChests = 0;
+            
+            while (placedChests < chestCount) {
+                const row = Math.floor(Math.random() * gameData.gridSize);
+                const col = Math.floor(Math.random() * gameData.gridSize);
+                
+                // 确保不在起点、BOSS位置和出口位置
+                if ((row === 0 && col === 0) || 
+                    (row === bossPosition.row && col === bossPosition.col) ||
+                    (gameState.exitPosition && row === gameState.exitPosition.row && col === gameState.exitPosition.col)) {
+                    continue;
+                }
+                
+                // 确保位置不重复
+                const isDuplicate = isPositionOccupied(row, col);
+                if (!isDuplicate) {
+                    gameState.chestPositions.push({ row, col, opened: false });
+                    placedChests++;
+                }
+            }
+            
+            // 随机放置高人（3个）
+            const sageCount = 3;
+            let placedSages = 0;
+            
+            while (placedSages < sageCount) {
+                const row = Math.floor(Math.random() * gameData.gridSize);
+                const col = Math.floor(Math.random() * gameData.gridSize);
+                
+                // 确保不在起点、BOSS位置和出口位置
+                if ((row === 0 && col === 0) || 
+                    (row === bossPosition.row && col === bossPosition.col) ||
+                    (gameState.exitPosition && row === gameState.exitPosition.row && col === gameState.exitPosition.col)) {
+                    continue;
+                }
+                
+                // 确保位置不重复
+                const isDuplicate = isPositionOccupied(row, col);
+                if (!isDuplicate) {
+                    gameState.sagePositions.push({ row, col, messageIndex: Math.floor(Math.random() * gameData.sageMessages.length) });
+                    placedSages++;
+                }
+            }
+        }
+
+        // 检查位置是否被占用
+        function isPositionOccupied(row, col) {
+            return (
+                gameState.monsterPositions.some(pos => pos.row === row && pos.col === col) ||
+                gameState.chestPositions.some(pos => pos.row === row && pos.col === col) ||
+                gameState.sagePositions.some(pos => pos.row === row && pos.col === col) ||
+                (gameState.exitPosition && gameState.exitPosition.row === row && gameState.exitPosition.col === col)
+            );
+        }
+
+        // 初始化迷雾
+        function initFog() {
+            gameState.fog = [];
+            for (let row = 0; row < gameData.gridSize; row++) {
+                for (let col = 0; col < gameData.gridSize; col++) {
+                    // 起点不迷雾
+                    if (row === 0 && col === 0) {
+                        gameState.fog.push({ row, col, revealed: true });
+                    } else {
+                        gameState.fog.push({ row, col, revealed: false });
+                    }
+                }
+            }
+        }
+
+        // 清除指定位置周围的迷雾
+        function clearFog(row, col) {
+            const directions = [
+                { row: -1, col: 0 }, // 上
+                { row: 1, col: 0 },  // 下
+                { row: 0, col: -1 }, // 左
+                { row: 0, col: 1 }   // 右
+            ];
+            
+            // 清除当前位置的迷雾
+            const currentFogIndex = gameState.fog.findIndex(f => f.row === row && f.col === col);
+            if (currentFogIndex !== -1) {
+                gameState.fog[currentFogIndex].revealed = true;
+            }
+            
+            // 清除周围位置的迷雾
+            directions.forEach(dir => {
+                const newRow = row + dir.row;
+                const newCol = col + dir.col;
+                
+                if (newRow >= 0 && newRow < gameData.gridSize && newCol >= 0 && newCol < gameData.gridSize) {
+                    const fogIndex = gameState.fog.findIndex(f => f.row === newRow && f.col === newCol);
+                    if (fogIndex !== -1) {
+                        gameState.fog[fogIndex].revealed = true;
+                    }
+                }
+            });
+        }
+
+        // 渲染网格地图
+        function renderGrid() {
+            const gridMap = document.getElementById('gridMap');
+            gridMap.innerHTML = '';
+
+            for (let row = 0; row < gameData.gridSize; row++) {
+                for (let col = 0; col < gameData.gridSize; col++) {
+                    const roomElement = document.createElement('div');
+                    roomElement.className = 'room';
+                    
+                    // 检查是否有迷雾
+                    const fogInfo = gameState.fog.find(f => f.row === row && f.col === col);
+                    if (!fogInfo.revealed) {
+                        roomElement.className += ' fog';
+                        roomElement.onclick = () => handleFogClick(row, col);
+                        gridMap.appendChild(roomElement);
+                        continue;
+                    }
+                    
+                    let roomContent = '';
+                    
+                    // 检查是否有怪物
+                    const monsterInfo = getMonsterAtPosition(row, col);
+                    if (monsterInfo) {
+                        const monster = gameData.monsters[monsterInfo.index];
+                        if (!monster.defeated) {
+                            roomElement.className += ` ${monster.type}-room`;
+                            roomContent = `
+                                <div class="monster">${monster.emoji}</div>
+                            `;
+                        } else {
+                            roomContent = `
+                                <div class="defeated">✓</div>
+                            `;
+                        }
+                    }
+                    
+                    // 检查是否有宝箱
+                    const chestInfo = gameState.chestPositions.find(c => c.row === row && c.col === col);
+                    if (chestInfo && !chestInfo.opened) {
+                        roomContent += `
+                            <div class="chest">🎁</div>
+                        `;
+                    }
+                    
+                    // 检查是否有高人
+                    const sageInfo = gameState.sagePositions.find(s => s.row === row && s.col === col);
+                    if (sageInfo) {
+                        roomContent += `
+                            <div class="sage">🧙‍♂️</div>
+                        `;
+                    }
+                    
+                    // 检查是否有出口
+                    if (gameState.exitPosition && row === gameState.exitPosition.row && col === gameState.exitPosition.col) {
+                        roomElement.className += ' exit-room';
+                        roomContent += `
+                            <div class="exit">🚪</div>
+                        `;
+                    }
+                    
+                    // 添加角色
+                    if (row === gameState.playerPosition.row && col === gameState.playerPosition.col) {
+                        const skin = gameData.skins.find(s => s.id === gameState.currentSkin);
+                        roomContent += `<div class="character">${skin.emoji}</div>`;
+                    }
+                    
+                    // 高亮BOSS房间
+                    if (gameState.allMonstersDefeated && monsterInfo && monsterInfo.type === 'boss' && !gameData.monsters[8].defeated) {
+                        roomElement.className += ' highlighted';
+                    }
+                    
+                    roomElement.innerHTML = roomContent;
+                    gridMap.appendChild(roomElement);
+                }
+            }
+        }
+
+        // 处理迷雾点击
+        function handleFogClick(row, col) {
+            // 清除迷雾
+            clearFog(row, col);
+            
+            // 播放音效
+            playMoveSound();
+            
+            // 动画效果
+            const roomElement = document.querySelector(`.room:nth-child(${row * gameData.gridSize + col + 1})`);
+            if (roomElement) {
+                roomElement.className = 'room fog-clearing';
+                setTimeout(() => {
+                    roomElement.className = 'room';
+                    renderGrid();
+                }, 500);
+            }
+        }
+
+        // 获取指定位置的怪物
+        function getMonsterAtPosition(row, col) {
+            return gameState.monsterPositions.find(pos => pos.row === row && pos.col === col);
+        }
+
+        // 更新状态栏
+        function updateStatus() {
+            document.getElementById('score').textContent = gameState.score;
+            document.getElementById('monstersLeft').textContent = gameState.monstersLeft;
+        }
+
+        // 处理键盘按键
+        function handleKeyPress(e) {
+            switch (e.key) {
+                case 'ArrowUp':
+                    moveCharacter('up');
+                    break;
+                case 'ArrowDown':
+                    moveCharacter('down');
+                    break;
+                case 'ArrowLeft':
+                    moveCharacter('left');
+                    break;
+                case 'ArrowRight':
+                    moveCharacter('right');
+                    break;
+            }
+        }
+
+        // 移动角色
+        function moveCharacter(direction) {
+            let newRow = gameState.playerPosition.row;
+            let newCol = gameState.playerPosition.col;
+            
+            switch (direction) {
+                case 'up':
+                    newRow--;
+                    break;
+                case 'down':
+                    newRow++;
+                    break;
+                case 'left':
+                    newCol--;
+                    break;
+                case 'right':
+                    newCol++;
+                    break;
+            }
+            
+            // 检查边界
+            if (newRow >= 0 && newRow < gameData.gridSize && newCol >= 0 && newCol < gameData.gridSize) {
+                playMoveSound();
+                gameState.playerPosition.row = newRow;
+                gameState.playerPosition.col = newCol;
+                renderGrid();
+                checkCurrentRoom();
+            }
+        }
+
+        // 检查当前房间
+        function checkCurrentRoom() {
+            const row = gameState.playerPosition.row;
+            const col = gameState.playerPosition.col;
+            
+            // 清除当前位置周围的迷雾
+            clearFog(row, col);
+            renderGrid();
+            
+            // 检查是否有出口
+            if (gameState.exitPosition && row === gameState.exitPosition.row && col === gameState.exitPosition.col) {
+                // 检查是否击败了所有怪物
+                if (!gameState.allMonstersDefeated) {
+                    showConfirmModal();
+                } else {
+                    nextLevel();
+                }
+                return;
+            }
+            
+            // 检查是否有怪物
+            const monsterInfo = getMonsterAtPosition(row, col);
+            if (monsterInfo) {
+                const monster = gameData.monsters[monsterInfo.index];
+                if (!monster.defeated) {
+                    // 检查是否可以挑战BOSS
+                    if (monster.type === 'boss' && !gameState.allMonstersDefeated) {
+                        showSpeechBubble('先击败所有小怪才能挑战BOSS！', row, col);
+                        return;
+                    }
+                    startBattle(monster);
+                    return;
+                }
+            }
+            
+            // 检查是否有宝箱
+            const chestInfo = gameState.chestPositions.find(c => c.row === row && c.col === col);
+            if (chestInfo && !chestInfo.opened) {
+                // 打开宝箱
+                chestInfo.opened = true;
+                const reward = 20; // 宝箱奖励20积分
+                gameState.score += reward;
+                updateStatus();
+                saveGameState();
+                showSpeechBubble(`🎁 获得 ${reward} 积分！`, row, col);
+                renderGrid();
+                return;
+            }
+            
+            // 检查是否有高人
+            const sageInfo = gameState.sagePositions.find(s => s.row === row && s.col === col);
+            if (sageInfo) {
+                const message = gameData.sageMessages[sageInfo.messageIndex];
+                showSpeechBubble(`🧙‍♂️ ${message}`, row, col);
+            }
+        }
+
+        // 显示气泡
+        function showSpeechBubble(text, row, col) {
+            // 简化版气泡显示
+            const audioHint = document.getElementById('audioHint');
+            audioHint.textContent = text;
+            audioHint.style.animation = 'none';
+            setTimeout(() => {
+                audioHint.style.animation = 'fadeInOut 3s ease-in-out';
+            }, 10);
+        }
+
+        // 开始战斗
+        function startBattle(monster) {
+            const modal = document.getElementById('battleModal');
+            const battleMonster = document.getElementById('battleMonster');
+            const monsterName = document.getElementById('monsterName');
+            const battleQuestion = document.getElementById('battleQuestion');
+            const battleOptions = document.getElementById('battleOptions');
+
+            battleMonster.textContent = monster.emoji;
+            monsterName.textContent = monster.label;
+
+            // 随机选择题目
+            const questionIndex = Math.floor(Math.random() * gameData.questions.length);
+            const question = gameData.questions[questionIndex];
+            battleQuestion.textContent = question.text;
+            battleOptions.innerHTML = '';
+
+            question.options.forEach(option => {
+                const optionElement = document.createElement('div');
+                optionElement.className = 'battle-opt';
+                optionElement.textContent = option.text;
+                optionElement.setAttribute('data-correct', option.correct);
+                optionElement.addEventListener('click', () => checkAnswer(optionElement, monster));
+                battleOptions.appendChild(optionElement);
+            });
+
+            modal.style.visibility = 'visible';
+            modal.style.opacity = '1';
+        }
+
+        // 显示拟声词气泡
+        function showBattleSpeechBubble(text) {
+            const battleMonster = document.getElementById('battleMonster');
+            const bubble = document.createElement('div');
+            bubble.className = 'speech-bubble';
+            bubble.textContent = text;
+            battleMonster.appendChild(bubble);
+            
+            setTimeout(() => {
+                bubble.remove();
+            }, 1500);
+        }
+
+        // 检查答案
+        function checkAnswer(optionElement, monster) {
+            const isCorrect = optionElement.getAttribute('data-correct') === 'true';
+            
+            if (isCorrect) {
+                optionElement.classList.add('correct');
+                playCorrectSound();
+                showBattleSpeechBubble('✨');
+                
+                if (monster.type === 'boss') {
+                    gameState.bossCorrectStreak++;
+                    if (gameState.bossCorrectStreak >= 2) {
+                        gameState.score += 50;
+                        monster.defeated = true;
+                        gameState.monstersLeft--;
+                        playWinSound();
+                        
+                        setTimeout(() => {
+                            document.getElementById('battleModal').style.visibility = 'hidden';
+                            document.getElementById('battleModal').style.opacity = '0';
+                            renderGrid();
+                            updateStatus();
+                            saveGameState();
+                            showWinModal();
+                        }, 1500);
+                    } else {
+                        showBattleSpeechBubble('BOSS护盾削弱！');
+                        
+                        setTimeout(() => {
+                            document.getElementById('battleModal').style.visibility = 'hidden';
+                            document.getElementById('battleModal').style.opacity = '0';
+                            // 再次挑战BOSS
+                            setTimeout(() => {
+                                startBattle(monster);
+                            }, 500);
+                        }, 1500);
+                    }
+                } else {
+                    gameState.score += 10;
+                    monster.defeated = true;
+                    gameState.monstersLeft--;
+                    
+                    // 检查是否击败了所有小怪
+                    const allMonstersDefeated = gameData.monsters.slice(0, 8).every(m => m.defeated);
+                    if (allMonstersDefeated) {
+                        gameState.allMonstersDefeated = true;
+                    }
+                    
+                    setTimeout(() => {
+                        document.getElementById('battleModal').style.visibility = 'hidden';
+                        document.getElementById('battleModal').style.opacity = '0';
+                        renderGrid();
+                        updateStatus();
+                        saveGameState();
+                    }, 1000);
+                }
+            } else {
+                optionElement.classList.add('incorrect');
+                playIncorrectSound();
+                showBattleSpeechBubble('😿');
+                
+                // 重置BOSS连击计数
+                if (monster.type === 'boss') {
+                    gameState.bossCorrectStreak = 0;
+                }
+                
+                // 显示正确答案
+                setTimeout(() => {
+                    document.querySelectorAll('.battle-opt').forEach(opt => {
+                        if (opt.getAttribute('data-correct') === 'true') {
+                            opt.classList.add('correct');
+                        }
+                    });
+                }, 500);
+            }
+        }
+
+        // 解锁音频
+        function unlockAudio() {
+            gameState.audioEnabled = true;
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            const audioHint = document.getElementById('audioHint');
+            audioHint.textContent = '音效已开启';
+            audioHint.style.animation = 'fadeInOut 3s ease-in-out';
+        }
+
+        // 播放移动音效
+        function playMoveSound() {
+            if (!gameState.audioEnabled) return;
+            
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            oscillator.type = 'square';
+            
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.05);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.1);
+        }
+
+        // 播放正确音效
+        function playCorrectSound() {
+            if (!gameState.audioEnabled) return;
+            
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(1000, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(1500, audioContext.currentTime + 0.3);
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.1);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.3);
+        }
+
+        // 播放错误音效
+        function playIncorrectSound() {
+            if (!gameState.audioEnabled) return;
+            
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.3);
+            oscillator.type = 'sawtooth';
+            
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.1);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.3);
+        }
+
+        // 播放胜利音效
+        function playWinSound() {
+            if (!gameState.audioEnabled) return;
+            
+            const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+            
+            notes.forEach((note, index) => {
+                setTimeout(() => {
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(note, audioContext.currentTime);
+                    oscillator.type = 'sine';
+                    
+                    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+                    gainNode.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.1);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                    
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.3);
+                }, index * 200);
+            });
+        }
+
+        // 显示通关弹窗
+        function showWinModal() {
+            const modal = document.getElementById('winModal');
+            const winEmoji = document.getElementById('winEmoji');
+            const winDesc = document.getElementById('winDesc');
+            
+            const emojis = ['🎉', '🏆', '✨', '🎊'];
+            winEmoji.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+            winDesc.textContent = `你成功击败了所有怪物，获得了 ${gameState.score} 分！`;
+            
+            modal.style.visibility = 'visible';
+            modal.style.opacity = '1';
+            
+            // 生成飘落的emoji
+            createFloatingEmojis();
+        }
+
+        // 生成飘落的emoji
+        function createFloatingEmojis() {
+            const emojis = ['🐱', '🦄', '🦖', '🐶', '🐥', '🦊', '🐸', '🐰', '🐻', '🐼', '🐨', '🐉'];
+            
+            for (let i = 0; i < 50; i++) {
+                const emoji = document.createElement('div');
+                emoji.className = 'floating-emoji';
+                emoji.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+                emoji.style.left = Math.random() * 100 + '%';
+                emoji.style.animationDelay = Math.random() * 3 + 's';
+                emoji.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                document.body.appendChild(emoji);
+                
+                setTimeout(() => {
+                    emoji.remove();
+                }, 5000);
+            }
+        }
+
+        // 切换衣柜面板
+        function toggleWardrobe() {
+            const modal = document.getElementById('wardrobeModal');
+            modal.style.visibility = 'visible';
+            modal.style.opacity = '1';
+        }
+
+        // 关闭衣柜面板
+        function closeWardrobe() {
+            const modal = document.getElementById('wardrobeModal');
+            modal.style.visibility = 'hidden';
+            modal.style.opacity = '0';
+        }
+
+        // 渲染皮肤
+        function renderSkins() {
+            const skinGrid = document.getElementById('skinGrid');
+            skinGrid.innerHTML = '';
+            
+            gameData.skins.forEach(skin => {
+                const skinElement = document.createElement('div');
+                skinElement.className = `skin-item ${skin.unlocked ? 'unlocked' : ''}`;
+                
+                let skinContent = `
+                    <div class="skin-icon">${skin.emoji}</div>
+                    <div class="skin-name">${skin.name}</div>
+                `;
+                
+                if (skin.unlocked) {
+                    if (gameState.currentSkin === skin.id) {
+                        skinContent += '<div class="skin-status">当前使用</div>';
+                    } else {
+                        skinContent += `<div class="skin-status" onclick="changeSkin('${skin.id}')">点击使用</div>`;
+                    }
+                } else {
+                    if (gameState.score >= skin.cost) {
+                        skinContent += `<div class="skin-cost" onclick="unlockSkin('${skin.id}')">${skin.cost}积分解锁</div>`;
+                    } else {
+                        skinContent += `<div class="skin-cost">需要${skin.cost}积分</div>`;
+                    }
+                }
+                
+                skinElement.innerHTML = skinContent;
+                skinGrid.appendChild(skinElement);
+            });
+        }
+
+        // 解锁皮肤
+        function unlockSkin(skinId) {
+            const skin = gameData.skins.find(s => s.id === skinId);
+            if (skin && gameState.score >= skin.cost) {
+                skin.unlocked = true;
+                gameState.currentSkin = skinId;
+                renderSkins();
+                renderGrid();
+                saveGameState();
+            }
+        }
+
+        // 更换皮肤
+        function changeSkin(skinId) {
+            gameState.currentSkin = skinId;
+            renderSkins();
+            renderGrid();
+            saveGameState();
+        }
+
+        // 重新开始游戏
+        function resetGame() {
+            // 重置怪物状态
+            gameData.monsters.forEach(monster => {
+                monster.defeated = false;
+            });
+            
+            // 重置游戏状态
+            gameState = {
+                ...gameState,
+                playerPosition: { row: 0, col: 0 },
+                monstersLeft: 9,
+                bossShield: 2,
+                bossCorrectStreak: 0,
+                allMonstersDefeated: false,
+                currentLevel: 1,
+                usedQuestions: []
+            };
+            
+            // 重新放置怪物、宝箱和高人
+            placeElements();
+            
+            // 初始化迷雾
+            initFog();
+            
+            renderGrid();
+            updateStatus();
+            
+            // 关闭所有弹窗
+            document.getElementById('winModal').style.visibility = 'hidden';
+            document.getElementById('winModal').style.opacity = '0';
+            document.getElementById('battleModal').style.visibility = 'hidden';
+            document.getElementById('battleModal').style.opacity = '0';
+            document.getElementById('wardrobeModal').style.visibility = 'hidden';
+            document.getElementById('wardrobeModal').style.opacity = '0';
+            document.getElementById('confirmModal').style.visibility = 'hidden';
+            document.getElementById('confirmModal').style.opacity = '0';
+        }
+
+        // 显示确认弹窗
+        function showConfirmModal() {
+            const modal = document.getElementById('confirmModal');
+            modal.style.visibility = 'visible';
+            modal.style.opacity = '1';
+        }
+
+        // 关闭确认弹窗
+        function closeConfirmModal() {
+            const modal = document.getElementById('confirmModal');
+            modal.style.visibility = 'hidden';
+            modal.style.opacity = '0';
+        }
+
+        // 确认进入下一关
+        function confirmNextLevel() {
+            closeConfirmModal();
+            nextLevel();
+        }
+
+        // 进入下一关
+        function nextLevel() {
+            // 检查是否已经是最后一关
+            if (gameState.currentLevel >= gameData.maxLevel) {
+                // 显示通关弹窗
+                showWinModal();
+                return;
+            }
+            
+            // 增加关卡
+            gameState.currentLevel++;
+            
+            // 重置怪物状态
+            gameData.monsters.forEach(monster => {
+                monster.defeated = false;
+            });
+            
+            // 重置游戏状态（保留积分和皮肤）
+            gameState = {
+                ...gameState,
+                playerPosition: { row: 0, col: 0 },
+                monstersLeft: 9,
+                bossShield: 2,
+                bossCorrectStreak: 0,
+                allMonstersDefeated: false
+            };
+            
+            // 重新放置怪物、宝箱和高人
+            placeElements();
+            
+            // 初始化迷雾
+            initFog();
+            
+            renderGrid();
+            updateStatus();
+            
+            // 显示关卡提示
+            showSpeechBubble(`🎉 进入第 ${gameState.currentLevel} 关！`, 0, 0);
+        }
+
+        // 开始游戏
+        function startGame() {
+            const startModal = document.getElementById('startModal');
+            startModal.style.display = 'none';
+            initGame();
+        }
+
+        // 初始化游戏
+        window.onload = function() {
+            // 显示开始游戏界面
+        };
+
+        // 注册Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(function(registration) {
+                        console.log('Service Worker 注册成功:', registration.scope);
+                    })
+                    .catch(function(error) {
+                        console.log('Service Worker 注册失败:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
